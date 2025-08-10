@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>VGC Load Checker — Always Active</title>
+<style>
+  :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  body { margin: 0; }
+  #banner { position: sticky; top:0; z-index:10; padding:18px 16px; text-align:center; font-weight:900; font-size:2rem; color:#fff; }
+  .neutral { background:#607d8b; }
+  .yes     { background:#2e7d32; }
+  .no      { background:#c62828; }
+  main { padding: 14px 16px 24px; }
+  .grid { display:grid; gap:12px; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); }
+  fieldset { border:1px solid #ccc; border-radius:8px; padding:12px; }
+  legend { font-weight:700; padding:0 6px; }
+  label { display:block; margin:6px 0 4px; }
+  input, select { width:100%; padding:10px; border:1px solid #bbb; border-radius:8px; font-size:1rem; }
+  button { width:100%; padding:14px; border:1px solid #333; border-radius:10px; font-size:1.1rem; background:#f5f5f5; }
+  .muted { color:#555; font-size:.9rem; }
+  .table { border-collapse: collapse; width:100%; margin-top:10px; }
+  .table th,.table td{ border:1px solid #ddd; padding:6px 8px; text-align:left; }
+  .right{ text-align:right; }
+  .why { margin-top:10px; padding:10px; border-radius:8px; background:#fff7e6; border-left:4px solid #f57c00; }
+  .caps { font-variant: all-small-caps; letter-spacing:.03em; color:#333; }
+  #inlineResult { margin:8px 0 0; font-weight:800; text-align:center; font-size:1.2rem; }
+  #inlineResult.ok { color:#2e7d32; }
+  #inlineResult.bad { color:#c62828; }
+</style>
+</head>
+<body>
+<div id="banner" class="neutral">Tap Calculate to check the load</div>
+<main>
+  <h1 style="margin:0 0 8px;">VGC Load Checker</h1>
+  <p class="muted">Two products max per truck. Uses ONLY the yard limits from your sign. Button is always active.</p>
+
+  <div class="grid">
+    <fieldset>
+      <legend>Truck</legend>
+      <label for="truck">Choose truck</label>
+      <select id="truck">
+        <option value="ton">Ton Truck</option>
+        <option value="split">Split Truck</option>
+        <option value="quad">Quad Axle Truck</option>
+      </select>
+      <div id="limits" class="muted" style="margin-top:8px;"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Material A</legend>
+      <label>Type</label>
+      <select id="aType">
+        <option value="stone">Stone</option>
+        <option value="topsoil">Soil</option>
+        <option value="compost">Compro/Compost</option>
+        <option value="sand">Sand</option>
+      </select>
+      <label>Yards</label>
+      <input id="aYd" type="number" min="0" step="0.1" placeholder="e.g., 6" inputmode="decimal">
+    </fieldset>
+
+    <fieldset>
+      <legend>Material B (optional)</legend>
+      <label>Type</label>
+      <select id="bType">
+        <option value="stone">Stone</option>
+        <option value="topsoil">Soil</option>
+        <option value="compost">Compro/Compost</option>
+        <option value="sand">Sand</option>
+      </select>
+      <label>Yards</label>
+      <input id="bYd" type="number" min="0" step="0.1" placeholder="e.g., 4" inputmode="decimal">
+    </fieldset>
+  </div>
+
+  <div id="inlineResult" class="neutral">—</div>
+
+  <div style="margin:16px 0;">
+    <button id="calcBtn" type="button">Calculate</button>
+  </div>
+
+  <div id="out"></div>
+</main>
+
+<script>
+  // Yard limits from the posted sheet
+  const caps = {
+    ton:     { stone:4,  topsoil:4,  compost:8,  sand:4,  bed:12 },
+    split:   { stone:8,  topsoil:10, compost:20, sand:8,  bed:25 },
+    quad:    { stone:16, topsoil:20, compost:25, sand:16, bed:30 },
+  };
+
+  const banner = document.getElementById('banner');
+  const truck  = document.getElementById('truck');
+  const aType  = document.getElementById('aType');
+  const bType  = document.getElementById('bType');
+  const aYd    = document.getElementById('aYd');
+  const bYd    = document.getElementById('bYd');
+  const limits = document.getElementById('limits');
+  const out    = document.getElementById('out');
+  const calcBtn= document.getElementById('calcBtn');
+  const inlineResult = document.getElementById('inlineResult');
+
+  function capName(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+  function updateLimits(){
+    const t = truck.value;
+    limits.textContent = `Bed: ${caps[t].bed} yd — Stone ${caps[t].stone}, Soil ${caps[t].topsoil}, Compost ${caps[t].compost}, Sand ${caps[t].sand}`;
+  }
+  updateLimits();
+  truck.addEventListener('change', updateLimits);
+
+  function showResults(ok, t, a, ya, b, yb, total, bedOK, aOK, bOK){
+    // Banner + inline result
+    if (ok){
+      banner.className = 'yes'; banner.textContent = 'YES — THIS LOAD FITS';
+      inlineResult.className = 'ok'; inlineResult.textContent = 'YES — This load fits.';
+    } else {
+      banner.className = 'no'; banner.textContent = 'NO — DOES NOT FIT';
+      inlineResult.className = 'bad'; inlineResult.textContent = 'NO — Does not fit.';
+    }
+    const reasons = [];
+    if (!bedOK) reasons.push(`Over bed by ${(total - caps[t].bed).toFixed(2)} yd (bed max ${caps[t].bed}).`);
+    if (!aOK) reasons.push(`${capName(a)} over cap by ${(ya - caps[t][a]).toFixed(2)} yd (cap ${caps[t][a]}).`);
+    if (!bOK) reasons.push(`${capName(b)} over cap by ${(yb - caps[t][b]).toFixed(2)} yd (cap ${caps[t][b]}).`);
+
+    const remainBed = Math.max(0, caps[t].bed - total);
+    const remainA   = Math.max(0, caps[t][a] - ya);
+    const remainB   = Math.max(0, caps[t][b] - yb);
+
+    out.innerHTML = `
+      <div class="why">
+        <strong>${ok ? 'All good.' : 'Why not?'}</strong>
+        <ul>${reasons.length ? reasons.map(r=>`<li>${r}</li>`).join('') : '<li>All limits satisfied.</li>'}</ul>
+        <div class="muted">Remaining — Bed: <b>${remainBed.toFixed(2)}</b> yd, ${capName(a)}: <b>${remainA.toFixed(2)}</b> yd, ${capName(b)}: <b>${remainB.toFixed(2)}</b> yd.</div>
+      </div>
+      <table class="table">
+        <tr><th>Material</th><th class="right">Yards</th><th class="right">Max on truck</th></tr>
+        ${ya>0?`<tr><td>${capName(a)}</td><td class="right">${ya}</td><td class="right">${caps[t][a]}</td></tr>`:''}
+        ${yb>0?`<tr><td>${capName(b)}</td><td class="right">${yb}</td><td class="right">${caps[t][b]}</td></tr>`:''}
+        <tr><th>Total</th><th class="right">${total}</th><th class="right">${caps[t].bed} (bed)</th></tr>
+      </table>
+    `;
+  }
+
+  function calculate(){
+    const t = truck.value;
+    const a = aType.value;
+    const b = bType.value;
+    const ya = Number(aYd.value)||0;
+    const yb = Number(bYd.value)||0;
+
+    // Allow single-material loads
+    if (!ya && !yb){
+      banner.className = 'neutral'; banner.textContent = 'Enter yards, then tap Calculate';
+      inlineResult.className = 'neutral'; inlineResult.textContent = '—';
+      out.innerHTML = '';
+      return;
+    }
+
+    const total = ya + yb;
+    const bedOK = total <= caps[t].bed + 1e-9;
+    const aOK   = ya <= caps[t][a] + 1e-9;
+    const bOK   = yb <= caps[t][b] + 1e-9;
+    const ok    = bedOK && aOK && bOK;
+
+    showResults(ok, t, a, ya, b, yb, total, bedOK, aOK, bOK);
+  }
+
+  // Always-active button (no form submit; click + touch)
+  calcBtn.addEventListener('click', calculate);
+  calcBtn.addEventListener('touchend', function(e){ e.preventDefault(); calculate(); }, {passive:false});
+</script>
+</body>
+</html>
