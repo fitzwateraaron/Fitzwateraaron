@@ -14,3 +14,8 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
+
+
+## Fleet Dashboard Brief
+
+See `fleet_dashboard_powerbi_spec.md` for a complete implementation brief and starter DAX for a live fleet maintenance dashboard in Power BI.
